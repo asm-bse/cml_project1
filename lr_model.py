@@ -1,7 +1,9 @@
+
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error, r2_score
-from scaling import X_train_scaled, X_test_scaled, y_train, y_test
+from scaling import scaling
 
+X_train_scaled, X_test_scaled, y_train, y_test = scaling()
 # Линейная регрессия
 lr_model = LinearRegression()
 lr_model.fit(X_train_scaled, y_train)

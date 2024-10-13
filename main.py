@@ -1,52 +1,113 @@
-import pandas as pd
-from lr_model import lr_results
-from random_forest import rf_results
-from gradient_boosting import gbr_results
-
-# Словарь для всех результатов
-results = {
-    'Linear Regression': lr_results,
-    'Random Forest': rf_results,
-    'Gradient Boosting': gbr_results
-}
-
-# Создание списка для табличного отображения результатов
-rows = []
-for model_name, result in results.items():
-    rows.append({
-        'Model': model_name,
-        'MSE': result['MSE'],
-        'R² Score': result['R²']
-    })
-
-# Преобразование списка в DataFrame для вывода в виде таблицы
-results_df = pd.DataFrame(rows)
-
-# Вывод таблицы с результатами моделей
-print("Результаты моделей:")
-print(results_df)
-
-# Поиск лучшей модели по MSE
-best_model_name = results_df.loc[results_df['MSE'].idxmin(), 'Model']
-best_result = results[best_model_name]
-
-print(f"\nЛучшая модель: {best_model_name}")
-print(f"  MSE: {best_result['MSE']}")
-print(f"  R²: {best_result['R²']}")
-
-# Сравнение предсказанных и реальных значений для лучшей модели
-predicted_vs_actual = pd.DataFrame({
-    'Predicted': best_result['y_pred'],
-    'Actual': best_result['y_test']
-})
-print("\nСравнение предсказанных и реальных значений (первые 5 записей):")
-print(predicted_vs_actual.head())
+import sys
+from pathlib import Path
+import questionary
+from questionary import Choice
+from loguru import logger
 
 
-import joblib
+def setup_paths():
+    current_dir = Path(__file__).resolve().parent
+    #would be usefull for many folders
+    sys.path.extend([
+        str(current_dir / 'migration'),
+        str(current_dir / 'rating'),
+        str(current_dir / 'salary'),
+        str(current_dir / 'scripts'),
+    ])
 
-# Сохранение лучшей модели
-best_model_name = min(results, key=lambda x: results[x]['MSE'])
-best_model = results[best_model_name]['model']
-joblib.dump(best_model, 'best_model.pkl')  # Сохранение модели в файл
 
+def setup_logger():
+    logger.remove()
+    
+    logger.add("./log/logging.log",
+               format="{time:YYYY-MM-DD HH:mm:ss} | {level:<8} | {module:<30} | {line:<4} | {message}",
+               level="INFO",
+               rotation="11 MB",
+               compression="zip")
+
+    logger.add(lambda msg: print(msg, end=""),
+               format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | "
+                      "<level>{level:<8}</level> | "
+                      "<cyan>{module:<30}</cyan> | "
+                      "<magenta>{line:<4}</magenta> | "
+                      "{message}",
+               level="INFO",
+               colorize=True)
+
+
+def run_clean_data():
+    try:
+        from cleaning_data import clean_data
+        clean_data()
+    except ImportError as e:
+        logger.error(f"import error: {e}")
+    except Exception as e:
+        logger.error(f"module error: {e}")
+
+
+def run_scaling():
+    try:
+        from scaling import scaling
+        scaling()
+    except ImportError as e:
+        logger.error(f"import error: {e}")
+    except Exception as e:
+        logger.error(f"module error: {e}")
+
+
+def run_compare_models():
+    try:
+        from compare_models import compare_models
+        compare_models()
+    except ImportError as e:
+        logger.error(f"import error: {e}")
+    except Exception as e:
+        logger.error(f"module error: {e}")
+
+
+def run_apply_model():
+    try:
+        from apply_model import apply_model
+        apply_model()
+    except ImportError as e:
+        logger.error(f"import error: {e}")
+    except Exception as e:
+        logger.error(f"module error: {e}")
+
+        
+def get_module():
+    result = questionary.select(
+        "Choose a script to launch:",
+        choices=[
+            Choice("00) Clean data", "clean_data"), #we can clean data only in order to check it. however. cleaning data is already included in scaling, so we can skip it here
+            Choice("1) Clean data + scale", "scaling"),
+            Choice("2) Compare models", "compare_models"),
+            Choice("3) Apply model", "apply_model"),
+            Choice("99) Quit", "exit")
+        ],
+        qmark="⚙️ ",
+        pointer="✅ ",
+    ).ask()
+    return result
+
+
+def main():
+    #setup_paths()
+    setup_logger()
+    module = get_module()
+    
+    if module == "clean_data":
+        run_clean_data()
+    elif module == "scaling":
+        run_scaling()
+    elif module == "compare_models":
+        run_compare_models()
+    elif module == "apply_model":
+        run_apply_model()                         
+    elif module == "exit":
+        logger.info("Goodbye!")
+        sys.exit()
+
+
+if __name__ == '__main__':
+    main()
